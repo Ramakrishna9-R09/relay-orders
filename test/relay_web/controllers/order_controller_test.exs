@@ -2,6 +2,7 @@ defmodule RelayWeb.OrderControllerTest do
   use RelayWeb.ConnCase
 
   alias Relay.Accounts.Organization
+  alias Relay.Orders
   alias Relay.Repo
   alias Relay.Security.ApiKey
 
@@ -70,5 +71,42 @@ defmodule RelayWeb.OrderControllerTest do
     replay = json_response(replay_conn, 200)
     assert replay["data"]["id"] == response["data"]["id"]
     assert get_resp_header(replay_conn, "idempotent-replayed") == ["true"]
+  end
+
+  test "preserves request correlation through the audit event", %{
+    conn: conn,
+    organization: organization
+  } do
+    correlation_id = "request-correlation-0001"
+
+    body = %{
+      "order" => %{
+        "external_id" => "correlated-#{System.unique_integer([:positive])}",
+        "customer_email" => "buyer@example.com",
+        "currency" => "USD",
+        "items" => [
+          %{
+            "sku" => "TRACE-1",
+            "name" => "Traceable Order",
+            "unit_price" => "10.00",
+            "quantity" => 1
+          }
+        ]
+      }
+    }
+
+    conn =
+      conn
+      |> put_req_header("authorization", "Bearer #{@api_key}")
+      |> put_req_header("idempotency-key", "correlated-order-0001")
+      |> put_req_header("x-request-id", correlation_id)
+      |> post(~p"/api/v1/orders", body)
+
+    order_id = json_response(conn, 201)["data"]["id"]
+
+    assert get_resp_header(conn, "x-request-id") == [correlation_id]
+
+    assert [%{correlation_id: ^correlation_id}] =
+             Orders.list_events(organization, order_id)
   end
 end
