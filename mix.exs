@@ -56,7 +56,8 @@ defmodule Relay.MixProject do
       {:cors_plug, "~> 3.0"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
-      {:sobelow, "~> 0.14", only: [:dev, :test], runtime: false}
+      {:sobelow, "~> 0.14", only: [:dev, :test], runtime: false},
+      {:stream_data, "~> 1.2", only: :test}
     ]
   end
 
