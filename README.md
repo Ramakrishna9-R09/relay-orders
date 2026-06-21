@@ -27,6 +27,7 @@ modeling and OTP-backed operational reliability.
 | [`priv/repo/migrations`](priv/repo/migrations) | PostgreSQL and Oban schema |
 | [`test`](test) | Domain, integration, and HTTP boundary tests |
 | [`docs/architecture.md`](docs/architecture.md) | System design and reliability model |
+| [`docs/operations.md`](docs/operations.md) | Deployment, recovery, and incident runbook |
 | [`docs/decisions`](docs/decisions) | Architectural decision records |
 | [`docs/openapi.yaml`](docs/openapi.yaml) | OpenAPI 3.1 contract |
 
