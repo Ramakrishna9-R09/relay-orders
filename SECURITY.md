@@ -30,3 +30,6 @@ disclosure.
 
 Production deployments must replace all development secrets, terminate TLS,
 restrict database access, rotate credentials, and centralize rate limiting.
+
+Dependency updates are proposed automatically through Dependabot. Security
+updates should be reviewed and merged promptly after CI passes.
