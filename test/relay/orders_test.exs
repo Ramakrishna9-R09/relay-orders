@@ -72,6 +72,24 @@ defmodule Relay.OrdersTest do
              Orders.create_order(organization, changed_attrs, options)
   end
 
+  test "does not expose an order to another organization", %{organization: organization} do
+    other_organization =
+      Repo.insert!(%Organization{
+        name: "Other Organization",
+        slug: "other-#{System.unique_integer([:positive])}",
+        api_key_hash: "other-hash-#{System.unique_integer([:positive])}"
+      })
+
+    assert {:ok, order, :created} =
+             Orders.create_order(organization, valid_order_attrs(),
+               idempotency_key: "tenant-order-0001",
+               correlation_id: Ecto.UUID.generate()
+             )
+
+    assert Orders.get_order(other_organization, order.id) == nil
+    assert Orders.list_events(other_organization, order.id) == []
+  end
+
   defp valid_order_attrs do
     %{
       "external_id" => "external-#{System.unique_integer([:positive])}",
