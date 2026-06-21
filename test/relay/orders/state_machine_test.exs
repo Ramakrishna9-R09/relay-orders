@@ -14,4 +14,12 @@ defmodule Relay.Orders.StateMachineTest do
     assert {:error, {:invalid_transition, :pending, :ship}} =
              StateMachine.transition(:pending, :ship)
   end
+
+  test "allows cancellation only before fulfillment begins" do
+    assert {:ok, :cancelled} = StateMachine.transition(:pending, :cancel)
+    assert {:ok, :cancelled} = StateMachine.transition(:paid, :cancel)
+
+    assert {:error, {:invalid_transition, :packed, :cancel}} =
+             StateMachine.transition(:packed, :cancel)
+  end
 end
