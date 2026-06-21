@@ -8,9 +8,14 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     services:
       postgres:
@@ -46,11 +51,25 @@ jobs:
             _build
           key: ${{ runner.os }}-mix-${{ hashFiles('mix.lock') }}
 
-      - run: mix deps.get
-      - run: mix format --check-formatted
-      - run: mix compile --warnings-as-errors
-      - run: mix credo --strict
-      - run: mix sobelow --exit
-      - run: mix ecto.create
-      - run: mix ecto.migrate
-      - run: mix test
+      - name: Fetch dependencies
+        run: mix deps.get
+
+      - name: Check formatting
+        run: mix format --check-formatted
+
+      - name: Compile without warnings
+        run: mix compile --warnings-as-errors
+
+      - name: Run static analysis
+        run: mix credo --strict
+
+      - name: Run security scan
+        run: mix sobelow --exit
+
+      - name: Prepare database
+        run: |
+          mix ecto.create
+          mix ecto.migrate
+
+      - name: Run test suite
+        run: mix test
