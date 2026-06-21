@@ -53,6 +53,25 @@ defmodule Relay.OrdersTest do
     assert paid.version == 2
   end
 
+  test "rejects an idempotency key reused with different input", %{
+    organization: organization
+  } do
+    options = [
+      idempotency_key: "reused-key-0001",
+      correlation_id: Ecto.UUID.generate()
+    ]
+
+    assert {:ok, _order, :created} =
+             Orders.create_order(organization, valid_order_attrs(), options)
+
+    changed_attrs =
+      valid_order_attrs()
+      |> Map.put("customer_email", "different@example.com")
+
+    assert {:error, :idempotency_key_reused} =
+             Orders.create_order(organization, changed_attrs, options)
+  end
+
   defp valid_order_attrs do
     %{
       "external_id" => "external-#{System.unique_integer([:positive])}",
