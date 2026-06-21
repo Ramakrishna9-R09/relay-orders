@@ -1,0 +1,71 @@
+defmodule Relay.OrdersTest do
+  use Relay.DataCase
+
+  alias Relay.Accounts.Organization
+  alias Relay.Orders
+
+  setup do
+    organization =
+      Repo.insert!(%Organization{
+        name: "Test Organization",
+        slug: "test-#{System.unique_integer([:positive])}",
+        api_key_hash: "hash-#{System.unique_integer([:positive])}"
+      })
+
+    %{organization: organization}
+  end
+
+  test "creates, audits, and idempotently replays an order", %{organization: organization} do
+    attrs = valid_order_attrs()
+    options = [idempotency_key: "create-order-0001", correlation_id: Ecto.UUID.generate()]
+
+    assert {:ok, order, :created} = Orders.create_order(organization, attrs, options)
+    assert order.status == :pending
+    assert order.total_amount == Decimal.new("25.00")
+
+    assert {:ok, replayed, :replayed} = Orders.create_order(organization, attrs, options)
+    assert replayed.id == order.id
+
+    assert [%{event_type: "order.created", sequence: 1}] =
+             Orders.list_events(organization, order.id)
+  end
+
+  test "serializes transitions and rejects invalid commands", %{organization: organization} do
+    {:ok, order, :created} =
+      Orders.create_order(organization, valid_order_attrs(),
+        idempotency_key: "create-order-0002",
+        correlation_id: Ecto.UUID.generate()
+      )
+
+    assert {:error, {:invalid_transition, :pending, :ship}} =
+             Orders.transition_order(organization, order.id, :ship,
+               idempotency_key: "ship-order-0002",
+               correlation_id: Ecto.UUID.generate()
+             )
+
+    assert {:ok, paid, :updated} =
+             Orders.transition_order(organization, order.id, :pay,
+               idempotency_key: "pay-order-0002",
+               correlation_id: Ecto.UUID.generate()
+             )
+
+    assert paid.status == :paid
+    assert paid.version == 2
+  end
+
+  defp valid_order_attrs do
+    %{
+      "external_id" => "external-#{System.unique_integer([:positive])}",
+      "customer_email" => "buyer@example.com",
+      "currency" => "USD",
+      "items" => [
+        %{
+          "sku" => "PRO-1",
+          "name" => "Professional Plan",
+          "unit_price" => "12.50",
+          "quantity" => 2
+        }
+      ]
+    }
+  end
+end

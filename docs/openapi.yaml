@@ -1,0 +1,143 @@
+openapi: 3.1.0
+info:
+  title: Relay Order Orchestration API
+  version: 1.0.0
+  description: Idempotent, tenant-scoped order commands with immutable audit events.
+servers:
+  - url: http://localhost:4000
+security:
+  - bearerAuth: []
+paths:
+  /health/live:
+    get:
+      security: []
+      responses:
+        "200":
+          description: Process is alive.
+  /health/ready:
+    get:
+      security: []
+      responses:
+        "200":
+          description: Application and database are ready.
+        "503":
+          description: A required dependency is unavailable.
+  /api/v1/orders:
+    post:
+      summary: Create an order
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [order]
+              properties:
+                order:
+                  $ref: "#/components/schemas/CreateOrder"
+      responses:
+        "201":
+          description: Order created.
+        "200":
+          description: Idempotent replay.
+        "409":
+          description: Idempotency conflict.
+        "422":
+          description: Validation failure.
+  /api/v1/orders/{id}:
+    get:
+      summary: Retrieve an order
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      responses:
+        "200":
+          description: Tenant-scoped order.
+        "404":
+          description: Order not found.
+  /api/v1/orders/{id}/transitions:
+    post:
+      summary: Apply an order command
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [command]
+              properties:
+                command:
+                  type: string
+                  enum: [pay, pack, ship, deliver, cancel]
+      responses:
+        "200":
+          description: Transition accepted or idempotently replayed.
+        "409":
+          description: Invalid state transition.
+  /api/v1/orders/{id}/events:
+    get:
+      summary: List immutable order events
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      responses:
+        "200":
+          description: Sequenced event stream.
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API key
+  parameters:
+    OrderId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 255
+  schemas:
+    CreateOrder:
+      type: object
+      required: [external_id, customer_email, currency, items]
+      properties:
+        external_id:
+          type: string
+          maxLength: 100
+        customer_email:
+          type: string
+          format: email
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+        metadata:
+          type: object
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [sku, name, unit_price, quantity]
+            properties:
+              sku:
+                type: string
+              name:
+                type: string
+              unit_price:
+                type: string
+                pattern: "^\\d+(\\.\\d{1,2})?$"
+              quantity:
+                type: integer
+                minimum: 1

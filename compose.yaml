@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:17.5-alpine
+    environment:
+      POSTGRES_DB: relay_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d relay_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  relay:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ecto://postgres:postgres@postgres/relay_dev
+      SECRET_KEY_BASE: H2pAOjcP8Z0G9fx2n5nF1I7CkO6rY5s5g9F0O2Q4gS8oP1T6dN4wL3cR7bV9xA2q
+      API_KEY_PEPPER: local-compose-pepper-change-in-production
+      PHX_HOST: localhost
+      PHX_SERVER: "true"
+      PORT: "4000"
+    command: >
+      sh -c "/app/bin/migrate && /app/bin/server"
+    ports:
+      - "4000:4000"
+
+volumes:
+  postgres_data:
