@@ -45,3 +45,6 @@ A good pull request explains:
 
 Security vulnerabilities must follow [SECURITY.md](SECURITY.md), not public
 issues.
+
+The test layers and expectations are described in
+[`docs/testing.md`](docs/testing.md).
