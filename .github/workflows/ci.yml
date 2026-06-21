@@ -32,7 +32,7 @@ jobs:
       API_KEY_PEPPER: ci-only-pepper
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: erlef/setup-beam@v1
         with:
